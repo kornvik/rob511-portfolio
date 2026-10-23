@@ -42,36 +42,33 @@
       <p class="text-xs tracking-widest uppercase text-neutral-500 mb-3">Project 3</p>
       <h1 class="text-5xl font-semibold tracking-tight leading-[1.05] mb-5">
         Forward Kinematics<br/>
-        <span class="text-neutral-400">+ Live Visualization</span>
+        <span class="text-pink-500">+ Live Visualization</span>
       </h1>
       <p class="text-lg text-neutral-600 max-w-2xl leading-relaxed">
-        A URDF-driven ROS-style runtime that computes forward kinematics for an
-        arbitrary open-chain robot, broadcasts every link's pose over a
-        rosbridge-style TCP/JSON gateway, and drives a choreography of joint
-        setpoints — rendered live in a browser via three.js. For the demo I
-        taught a 6-DOF arm the Queen's wave.
+        I wrote a small Rust runtime that reads a URDF, computes forward
+        kinematics for every link, and streams the 4×4 matrices over a
+        rosbridge-style TCP gateway. A three.js page on the other side draws
+        the arm live. For the demo I built a 6-DOF arm and taught it to wave
+        at the camera.
       </p>
       <div class="flex flex-wrap gap-2 mt-6">
         <span class="px-3 py-1 rounded-full border border-neutral-200 text-xs text-neutral-600">Rust</span>
-        <span class="px-3 py-1 rounded-full border border-neutral-200 text-xs text-neutral-600">rosbridge TCP/JSON</span>
-        <span class="px-3 py-1 rounded-full border border-neutral-200 text-xs text-neutral-600">URDF (hand-rolled XML parser)</span>
-        <span class="px-3 py-1 rounded-full border border-neutral-200 text-xs text-neutral-600">quaternions + 4×4 transforms</span>
         <span class="px-3 py-1 rounded-full border border-neutral-200 text-xs text-neutral-600">three.js</span>
+        <span class="px-3 py-1 rounded-full border border-neutral-200 text-xs text-neutral-600">URDF</span>
+        <span class="px-3 py-1 rounded-full border border-neutral-200 text-xs text-neutral-600">rosbridge TCP/JSON</span>
       </div>
     </header>
 
-    <!-- Comparison: robot vs reference -->
     <section class="grid md:grid-cols-2 gap-4 mb-16">
       <figure class="rounded-2xl border border-neutral-200 overflow-hidden bg-neutral-950">
-        <div class="aspect-[16/10] bg-black">
-          <video class="w-full h-full object-cover" controls autoplay muted loop playsinline>
+        <div class="aspect-[16/10] bg-black flex items-center justify-center">
+          <video class="w-full h-full object-contain" controls autoplay muted loop playsinline>
             <source src="demo.mp4" type="video/mp4"/>
-            <source src="demo.mov" type="video/quicktime"/>
           </video>
         </div>
         <figcaption class="flex items-center justify-between gap-4 px-4 py-3 bg-white text-sm">
           <span class="font-medium text-neutral-900">Robot</span>
-          <span class="text-neutral-500">arm6 · three.js · 10 Hz FK</span>
+          <span class="text-neutral-500">arm6 in the viewer</span>
         </figcaption>
       </figure>
       <figure class="rounded-2xl border border-neutral-200 overflow-hidden">
@@ -80,115 +77,62 @@
         </div>
         <figcaption class="flex items-center justify-between gap-4 px-4 py-3 bg-white text-sm">
           <span class="font-medium text-neutral-900">Reference</span>
-          <span class="text-neutral-500">Queen Elizabeth II · via gifdb.com</span>
+          <span class="text-neutral-500">Queen Elizabeth II</span>
         </figcaption>
       </figure>
     </section>
 
-    <!-- The robot -->
     <section class="mb-14">
-      <h2 class="text-2xl font-semibold tracking-tight mb-6">The robot</h2>
-      <div class="grid md:grid-cols-2 gap-4">
-        <div class="rounded-2xl border border-neutral-200 p-6 prose text-neutral-700 leading-relaxed">
-          <p class="text-xs tracking-widest uppercase text-neutral-500 !mb-3">Kinematic structure</p>
-          <p>A 6-DOF articulated arm modeled after a Trossen WidowX-style serial manipulator, described in hand-written URDF:</p>
-          <ul>
-            <li><strong class="text-neutral-900">waist</strong> — base yaw (+Z).</li>
-            <li><strong class="text-neutral-900">shoulder</strong> — pitches about −Y.</li>
-            <li><strong class="text-neutral-900">elbow</strong> — pitches about −Y.</li>
-            <li><strong class="text-neutral-900">wrist_roll</strong> — rolls about the forearm axis (+X).</li>
-            <li><strong class="text-neutral-900">wrist_pitch</strong> — pitches about +Y.</li>
-            <li><strong class="text-neutral-900">gripper_yaw</strong> — final yaw at the hand (+X).</li>
-          </ul>
-          <p>Each articulated joint carries a fixed-child "motor housing" cylinder so the arm actually <em>looks</em> like a robot in the viewer, not a stack of bare segments.</p>
-        </div>
-        <div class="rounded-2xl border border-neutral-200 p-6 prose text-neutral-700 leading-relaxed">
-          <p class="text-xs tracking-widest uppercase text-neutral-500 !mb-3">Why this shape</p>
-          <p>Six joints exercise every FK piece non-trivially: pitch joints that compose non-commutatively, a roll about a parent-dependent axis, and a yaw whose axis depends on <em>everything</em> above it. If any matrix math, quaternion extraction, or axis-angle rotation is wrong, the hand points the wrong way somewhere in the cycle.</p>
-          <p>The runtime loads this URDF through the same <code>/param_server</code> the autograder uses — no demo-specific shortcuts.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- The choreography -->
-    <section class="mb-14">
-      <h2 class="text-2xl font-semibold tracking-tight mb-6">The choreography</h2>
+      <h2 class="text-2xl font-semibold tracking-tight mb-4">The arm</h2>
       <div class="rounded-2xl border border-neutral-200 p-6 prose text-neutral-700 leading-relaxed">
-        <p>Driven by a <strong class="text-neutral-900">finite state machine</strong> that holds a table of joint-space setpoints. On entering a state the FSM publishes the setpoint on <code>/joint_trajectory</code>; a proportional joint servo moves each joint toward it; when every named joint lands within <code>epsilon</code> of its target, the FSM fires the state's <code>on_arrival</code> transition.</p>
-        <p>The video runs the <strong class="text-neutral-900">wave</strong> choreography — a four-state loop:</p>
-        <ul>
-          <li><strong class="text-neutral-900">home</strong> — all joints at zero.</li>
-          <li><strong class="text-neutral-900">arm_up</strong> — elbow bends to +π/2; the arm forms an "L" with the forearm pointing straight up and the palm pre-rolled to face the crowd.</li>
-          <li><strong class="text-neutral-900">wave_right</strong> — <code>wrist_roll</code> sweeps right, the waist leans slightly in that direction, and the elbow wobbles ~5° to add organic shake.</li>
-          <li><strong class="text-neutral-900">wave_left</strong> — the mirrored pose; then the FSM loops back to <code>wave_right</code> indefinitely.</li>
-        </ul>
-        <p>Because the forearm points up (world +Z), rotating <code>wrist_roll</code> becomes a pure yaw about the world vertical — which is exactly what makes a human wave look like a wave.</p>
+        <p>Six joints: <code>waist</code> yaw, <code>shoulder</code> and
+        <code>elbow</code> pitch, then a 3-DOF wrist
+        (<code>wrist_roll</code>, <code>wrist_pitch</code>, <code>gripper_yaw</code>).
+        Each articulated joint carries a small cylinder as a fixed-child link so
+        the arm actually looks like a robot in the viewer, not a stack of sticks.</p>
+        <p>I wrote the URDF by hand. The runtime loads it through the same
+        <code>/param_server</code> the autograder uses, so nothing in the demo
+        path is special-cased.</p>
       </div>
     </section>
 
-    <!-- How it's drawn -->
     <section class="mb-14">
-      <h2 class="text-2xl font-semibold tracking-tight mb-6">How it's drawn</h2>
+      <h2 class="text-2xl font-semibold tracking-tight mb-4">The wave</h2>
       <div class="rounded-2xl border border-neutral-200 p-6 prose text-neutral-700 leading-relaxed">
-        <p>The viewer is a static three.js page (<code>index.html</code> + <code>viewer.js</code>) that opens a WebSocket to a small Python relay (<code>bridge.py</code>). The relay forwards newline-delimited JSON between the browser and the runtime's TCP gateway on 127.0.0.1:9095 — the browser can't open raw TCP sockets, but everything else is vanilla rosbridge.</p>
-        <p>On startup the viewer:</p>
-        <ol class="list-decimal pl-5 space-y-1 my-3">
-          <li>Reads <code>robots/arm6/arm6.urdf</code> from disk.</li>
-          <li>Calls <code>/param_server/set_param</code> with the URDF, waits for <code>/robot_state_publisher/description_status</code> to accept it.</li>
-          <li>Parses the URDF's <code>&lt;visual&gt;</code> elements and builds one three.js <code>Group</code> per link, with box / cylinder / sphere geometries.</li>
-          <li>Subscribes to <code>/xform_world</code> and, on every message, applies the 4×4 matrix of each link's node with <code>matrix.fromArray(t.matrix)</code>. The matrix layout is column-major and matches <code>THREE.Matrix4</code> exactly, so no transpose is needed.</li>
-        </ol>
+        <p>Four states: <code>home</code>, <code>arm_up</code>, <code>wave_right</code>,
+        <code>wave_left</code>. The FSM sits in the right/left loop. The hand
+        sweeps with <code>wrist_roll</code> and the waist leans a bit each way
+        so the body turns too, the way the Queen does when she acknowledges
+        both sides of the crowd.</p>
+        <p>Small trick that makes it look right: with the forearm pointing
+        straight up, <code>wrist_roll</code> rotates around the world vertical
+        axis. That is what makes the hand look like it is waving instead of
+        spinning on its wrist like a propeller.</p>
       </div>
     </section>
 
-    <!-- Node graph -->
     <section class="mb-14">
-      <h2 class="text-2xl font-semibold tracking-tight mb-6">Node graph</h2>
-      <pre class="rounded-2xl border border-neutral-200 p-6 overflow-x-auto bg-neutral-50 text-[13px] leading-relaxed font-mono text-neutral-700"><span class="text-neutral-900 font-medium">external clients</span> (grader, viewer, …)
-         |
-    TCP / JSON   (127.0.0.1:9095)
-         |
-   <span class="text-neutral-900 font-medium">rosbridge gateway</span>
-         |
-<span class="text-neutral-900 font-medium">param_server</span>  (robot_description, description_status)
-         |
-         v
-<span class="text-neutral-900 font-medium">robot_state_publisher</span>  &lt;--  /joint_states  --  <span class="text-neutral-900 font-medium">joint_state_publisher</span>  (demo)
-         |                                          ^
-   /tf   (parent → child, per joint)                |  /joint_trajectory
-         |                                          |
-         v                                          |
-<span class="text-neutral-900 font-medium">robot_world_state_publisher</span>  &lt;--  /global_pose   <span class="text-neutral-900 font-medium">finite_state_machine</span>  (demo)
-         |                                                /fsm/*  services
-         v
-<span class="text-neutral-900 font-medium">/xform_world</span>  (every link, 4×4 matrix in global_frame)</pre>
-    </section>
-
-    <!-- Math -->
-    <section class="mb-14">
-      <h2 class="text-2xl font-semibold tracking-tight mb-6">Mathematical core</h2>
-      <div class="grid md:grid-cols-2 gap-4">
-        <div class="rounded-2xl border border-neutral-200 p-6 prose text-neutral-700 leading-relaxed">
-          <p class="text-xs tracking-widest uppercase text-neutral-500 !mb-3">Transforms</p>
-          <ul>
-            <li>rpy = Rz(yaw) · Ry(pitch) · Rx(roll), fixed-axis.</li>
-            <li>Joint transform T_joint(q) = T_origin · T_motion(q).</li>
-            <li>Revolute / continuous: axis-angle (Rodrigues), axis normalized.</li>
-            <li>Prismatic: translation along axis as written (not normalized).</li>
-            <li>Fixed: identity.</li>
-          </ul>
-        </div>
-        <div class="rounded-2xl border border-neutral-200 p-6 prose text-neutral-700 leading-relaxed">
-          <p class="text-xs tracking-widest uppercase text-neutral-500 !mb-3">Quaternion extraction</p>
-          <p>Rotation-matrix → quaternion uses the four-branch extraction (pick the largest of w², x², y², z² first). The trace-only formula divides by a near-zero number near a 180° rotation; the four-branch version is numerically stable everywhere.</p>
-        </div>
+      <h2 class="text-2xl font-semibold tracking-tight mb-4">How it is drawn</h2>
+      <div class="rounded-2xl border border-neutral-200 p-6 prose text-neutral-700 leading-relaxed">
+        <p>The browser cannot open raw TCP sockets, so a tiny Python relay
+        (<code>bridge.py</code>) forwards newline-delimited JSON between the
+        viewer's WebSocket and the runtime's TCP port on 127.0.0.1:9095.
+        Everything above that is vanilla rosbridge.</p>
+        <p>The viewer pushes the URDF text to <code>/param_server</code>,
+        waits for <code>robot_state_publisher</code> to accept it, parses the
+        <code>&lt;visual&gt;</code> tags into three.js groups, then subscribes
+        to <code>/xform_world</code>. On every message it drops each link's
+        4×4 matrix into the corresponding group with
+        <code>matrix.fromArray(t.matrix)</code>. The matrix layout is
+        column-major and matches <code>THREE.Matrix4</code> exactly, so no
+        transpose is needed.</p>
       </div>
     </section>
 
     <footer class="mt-20 pt-6 border-t border-neutral-200 text-sm text-neutral-500 space-y-2">
-      <p><strong class="text-neutral-900">Reference image.</strong> Queen Elizabeth II waving GIF is hotlinked from <a class="underline hover:text-neutral-900" href="https://gifdb.com/">gifdb.com</a> and is the property of its rights-holder; included for non-commercial academic comparison.</p>
-      <p><strong class="text-neutral-900">License.</strong> This project is released under the Michigan Honor License (3-Clause BSD + academic integrity clauses).</p>
-      <p><strong class="text-neutral-900">Course.</strong> AutoRob · University of Michigan ROB 511 · Fall 2026.</p>
+      <p>Reference GIF is a clip of Queen Elizabeth II, used here only for comparison. It belongs to its rights-holder.</p>
+      <p>Released under the Michigan Honor License (3-Clause BSD plus academic integrity clauses).</p>
+      <p>AutoRob · University of Michigan ROB 511 · Fall 2026.</p>
     </footer>
   </main>
 </body>
