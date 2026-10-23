@@ -83,50 +83,20 @@
     </section>
 
     <section class="mb-14">
-      <h2 class="text-2xl font-semibold tracking-tight mb-4">The arm</h2>
-      <div class="rounded-2xl border border-neutral-200 p-6 prose text-neutral-700 leading-relaxed">
-        <p>Six joints: <code>waist</code> yaw, <code>shoulder</code> and
-        <code>elbow</code> pitch, then a 3-DOF wrist
-        (<code>wrist_roll</code>, <code>wrist_pitch</code>, <code>gripper_yaw</code>).
-        Each articulated joint carries a small cylinder as a fixed-child link so
-        the arm actually looks like a robot in the viewer, not a stack of sticks.</p>
-        <p>I wrote the URDF by hand. The runtime loads it through the same
-        <code>/param_server</code> the autograder uses, so nothing in the demo
-        path is special-cased.</p>
-      </div>
-    </section>
-
-    <section class="mb-14">
-      <h2 class="text-2xl font-semibold tracking-tight mb-4">The wave</h2>
-      <div class="rounded-2xl border border-neutral-200 p-6 prose text-neutral-700 leading-relaxed">
-        <p>Four states: <code>home</code>, <code>arm_up</code>, <code>wave_right</code>,
-        <code>wave_left</code>. The FSM sits in the right/left loop. The hand
-        sweeps with <code>wrist_roll</code> and the waist leans a bit each way
-        so the body turns too, the way the Queen does when she acknowledges
-        both sides of the crowd.</p>
-        <p>Small trick that makes it look right: with the forearm pointing
-        straight up, <code>wrist_roll</code> rotates around the world vertical
-        axis. That is what makes the hand look like it is waving instead of
-        spinning on its wrist like a propeller.</p>
-      </div>
-    </section>
-
-    <section class="mb-14">
-      <h2 class="text-2xl font-semibold tracking-tight mb-4">How it is drawn</h2>
-      <div class="rounded-2xl border border-neutral-200 p-6 prose text-neutral-700 leading-relaxed">
-        <p>The browser cannot open raw TCP sockets, so a tiny Python relay
-        (<code>bridge.py</code>) forwards newline-delimited JSON between the
-        viewer's WebSocket and the runtime's TCP port on 127.0.0.1:9095.
-        Everything above that is vanilla rosbridge.</p>
-        <p>The viewer pushes the URDF text to <code>/param_server</code>,
-        waits for <code>robot_state_publisher</code> to accept it, parses the
-        <code>&lt;visual&gt;</code> tags into three.js groups, then subscribes
-        to <code>/xform_world</code>. On every message it drops each link's
-        4×4 matrix into the corresponding group with
-        <code>matrix.fromArray(t.matrix)</code>. The matrix layout is
-        column-major and matches <code>THREE.Matrix4</code> exactly, so no
-        transpose is needed.</p>
-      </div>
+      <dl class="rounded-2xl border border-neutral-200 divide-y divide-neutral-200 text-neutral-700 leading-relaxed">
+        <div class="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-2 sm:gap-6 p-6">
+          <dt class="text-xs tracking-widest uppercase text-neutral-500 pt-1">Robot</dt>
+          <dd>A 6-DOF arm I wrote by hand in URDF: waist, shoulder, elbow, and a 3-DOF wrist.</dd>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-2 sm:gap-6 p-6">
+          <dt class="text-xs tracking-widest uppercase text-neutral-500 pt-1">Choreography</dt>
+          <dd>A four-state FSM: home, arm up, wave right, wave left. The waist leans a bit each way so the body turns too.</dd>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-2 sm:gap-6 p-6">
+          <dt class="text-xs tracking-widest uppercase text-neutral-500 pt-1">How it's drawn</dt>
+          <dd>A three.js page over a WebSocket (via a tiny Python TCP relay). It subscribes to <code class="text-sm px-1.5 py-0.5 bg-neutral-100 rounded">/xform_world</code> and drops each link's 4×4 straight into a group with <code class="text-sm px-1.5 py-0.5 bg-neutral-100 rounded">Matrix4.fromArray</code>.</dd>
+        </div>
+      </dl>
     </section>
 
     <footer class="mt-20 pt-6 border-t border-neutral-200 text-sm text-neutral-500 space-y-2">
